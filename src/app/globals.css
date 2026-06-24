@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --linen:        #FAF6F0;
+  --linen-dark:   #F2E8D8;
+  --parchment:    #E8D9C4;
+  --espresso:     #1C0A04;
+  --espresso-2:   #2A1208;
+  --terra:        #B85C38;
+  --terra-light:  #D4734A;
+  --honey:        #C4922A;
+  --honey-light:  #DFB245;
+  --ink:          #1C0A04;
+  --ink-muted:    #7A5A48;
+  --cream:        #F5ECD7;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: auto;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--linen);
+  color: var(--ink);
+  overflow-x: hidden;
+  cursor: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Mobile — restore default cursor */
+@media (max-width: 767px) {
+  body { cursor: auto; }
+}
+
+/* Tap highlight removal on mobile */
+a, button { -webkit-tap-highlight-color: transparent; }
+
+/* Minimum touch target */
+button, a { min-height: 44px; }
+
+/* Scrollbar — hide on mobile */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--linen); }
+::-webkit-scrollbar-thumb { background: var(--terra); border-radius: 2px; }
+@media (max-width: 767px) { ::-webkit-scrollbar { display: none; } }
+
+/* ─── Gradient text ─── */
+.gradient-text {
+  background: linear-gradient(135deg, #B85C38 0%, #DFB245 50%, #B85C38 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ─── Glass ─── */
+.glass {
+  background: rgba(250, 246, 240, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(184, 92, 56, 0.12);
+}
+
+/* ─── Steam ─── */
+.steam-wsp {
+  position: absolute;
+  width: 5px;
+  border-radius: 50px;
+  background: rgba(184, 92, 56, 0.12);
+  filter: blur(4px);
+  animation: steamRise 3.5s ease-out infinite;
+}
+.steam-wsp:nth-child(2) { animation-delay: 0.8s; animation-duration: 4s; }
+.steam-wsp:nth-child(3) { animation-delay: 1.6s; animation-duration: 3s; }
+
+@keyframes steamRise {
+  0%   { transform: translateY(0) translateX(0) scaleX(1); opacity: 0; }
+  20%  { opacity: 0.45; }
+  100% { transform: translateY(-80px) translateX(10px) scaleX(2); opacity: 0; }
+}
+
+/* ─── Coffee bean particle ─── */
+.bean-particle {
+  position: absolute;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: radial-gradient(ellipse at 35% 35%, #A67C52, #4a2410);
+  animation: beanFloat linear infinite;
+  opacity: 0.3;
+}
+@keyframes beanFloat {
+  0%   { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+  5%   { opacity: 0.25; }
+  95%  { opacity: 0.12; }
+  100% { transform: translateY(-120px) rotate(540deg); opacity: 0; }
+}
+
+/* ─── Scroll progress bar ─── */
+.scroll-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #B85C38, #DFB245);
+  z-index: 9999;
+  transition: width 0.1s linear;
+}
+
+/* ─── Masonry ─── */
+.masonry { columns: 3; column-gap: 10px; }
+.masonry-item { break-inside: avoid; margin-bottom: 10px; display: block; }
+@media (max-width: 900px) { .masonry { columns: 2; } }
+@media (max-width: 480px) { .masonry { columns: 2; column-gap: 6px; } .masonry-item { margin-bottom: 6px; } }
+
+/* ─── Section divider ─── */
+.section-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(184,92,56,0.25), transparent);
+}
+
+/* ─── Horizontal track (Journey desktop) ─── */
+.h-track { display: flex; width: max-content; }
+
+/* ─── Full-height utilities ─── */
+.h-screen-safe {
+  height: 100dvh; /* dynamic viewport height — accounts for mobile browser chrome */
+}
+@supports not (height: 100dvh) {
+  .h-screen-safe { height: 100vh; }
+}
+
+/* ─── Mobile section spacing ─── */
+@media (max-width: 767px) {
+  section { overflow-x: hidden; }
+}
+
+/* ─── Scrollbar hidden utility ─── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Marquee animation (Menu highlights) ─── */
+@keyframes marquee-move {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee-move 22s linear infinite;
+}
+.animate-marquee:hover { animation-play-state: paused; }
