@@ -10,37 +10,79 @@ const SCENES = [
   { img: '/assets/cafe4.jpg',  label: '05', heading: ['Your cup.', 'Your moment.'],                 sub: 'Every cup has a story. This one is yours.',     align: 'center' },
 ]
 
-/* ─── Mobile: vertical scroll → horizontal pan ─── */
+/* ─── Mobile: pinned crossfade driven by vertical scroll ─── */
 function MobileCinematics() {
-  const wrapRef   = useRef(null)
-  const stickyRef = useRef(null)
-  const trackRef  = useRef(null)
-  const dotRefs   = useRef([])
+  const wrapRef  = useRef(null)
+  const panelRefs = useRef([])
+  const textRefs  = useRef([])
+  const barRef    = useRef(null)
+  const counterRef = useRef(null)
   const [current, setCurrent] = useState(0)
 
   useEffect(() => {
-    const wrap   = wrapRef.current
-    const sticky = stickyRef.current
-    const track  = trackRef.current
-    if (!wrap || !sticky || !track) return
-
+    const wrap = wrapRef.current
+    if (!wrap) return
     const total = SCENES.length
 
     const onScroll = () => {
       const rect      = wrap.getBoundingClientRect()
       const wrapH     = wrap.offsetHeight
-      const stickyH   = sticky.offsetHeight
-      const scrolled  = -rect.top                       // px scrolled into section
-      const maxScroll = wrapH - stickyH                 // total scrollable distance
-      const progress  = Math.min(Math.max(scrolled / maxScroll, 0), 1)
+      const vh        = window.innerHeight
+      const scrolled  = Math.max(-rect.top, 0)
+      const maxScroll = wrapH - vh
+      const prog      = Math.min(scrolled / maxScroll, 1)  // 0→1 over whole section
 
-      // Each slide is exactly one viewport wide; move (total-1) viewports total
-      const maxX = (total - 1) * window.innerWidth
-      track.style.transform = `translateX(-${progress * maxX}px)`
+      const sceneF = prog * total
+      const idx    = Math.min(Math.floor(sceneF), total - 1)
+      const local  = sceneF - Math.floor(sceneF)           // 0→1 within current scene
 
-      // Active dot
-      const idx = Math.min(Math.floor(progress * total + 0.15), total - 1)
       setCurrent(idx)
+
+      // Update progress bar
+      if (barRef.current) barRef.current.style.width = `${prog * 100}%`
+      if (counterRef.current) counterRef.current.textContent = `0${idx + 1} / 0${total}`
+
+      // Animate each panel
+      panelRefs.current.forEach((panel, i) => {
+        if (!panel) return
+        const text = textRefs.current[i]
+
+        if (i === idx) {
+          // Active scene: fade in + Ken Burns scale down
+          const enterP  = Math.min(local / 0.25, 1)
+          const scale   = 1.06 - enterP * 0.06  // 1.06 → 1.00
+          const textY   = (1 - Math.min(local / 0.3, 1)) * 30
+          const textOp  = Math.min(local / 0.3, 1)
+
+          panel.style.opacity  = String(i === 0 ? 1 : enterP)
+          panel.style.zIndex   = '2'
+          panel.children[0].style.transform = `scale(${scale})`
+          if (text) { text.style.transform = `translateY(${textY}px)`; text.style.opacity = String(i === 0 && local < 0.01 ? 1 : textOp) }
+
+        } else if (i === idx - 1) {
+          // Previous scene: fade out
+          const exitP  = Math.min(local / 0.3, 1)
+          const textY  = exitP * -28
+          const textOp = 1 - exitP
+
+          panel.style.opacity = String(1 - exitP)
+          panel.style.zIndex  = '1'
+          panel.children[0].style.transform = `scale(1)`
+          if (text) { text.style.transform = `translateY(${textY}px)`; text.style.opacity = String(textOp) }
+
+        } else {
+          panel.style.opacity = i < idx ? '0' : (i === 0 ? '1' : '0')
+          panel.style.zIndex  = '0'
+          panel.children[0].style.transform = `scale(1.06)`
+          if (text) { text.style.transform = 'translateY(30px)'; text.style.opacity = i === 0 && idx === 0 ? '1' : '0' }
+        }
+      })
+
+      // First panel: always show at start
+      if (panelRefs.current[0] && idx === 0 && scrolled === 0) {
+        panelRefs.current[0].style.opacity = '1'
+        if (textRefs.current[0]) { textRefs.current[0].style.transform = 'translateY(0px)'; textRefs.current[0].style.opacity = '1' }
+      }
     }
 
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -49,88 +91,81 @@ function MobileCinematics() {
   }, [])
 
   return (
-    /* Outer wrapper — tall enough to drive the scroll */
-    <div ref={wrapRef} style={{ height: `${SCENES.length * 100}dvh`, position: 'relative' }}>
+    <div ref={wrapRef} style={{ height: `${(SCENES.length + 0.8) * 100}dvh`, position: 'relative' }}>
+      <div className="sticky top-0 overflow-hidden" style={{ height: '100dvh', background: '#1C0A04' }}>
 
-      {/* Sticky viewport */}
-      <div ref={stickyRef} className="sticky top-0 overflow-hidden"
-        style={{ height: '100dvh', background: '#1C0A04' }}>
+        {/* Panels — stacked absolutely */}
+        {SCENES.map((scene, i) => (
+          <div key={i} ref={el => panelRefs.current[i] = el}
+            className="absolute inset-0"
+            style={{ opacity: i === 0 ? 1 : 0, zIndex: i === 0 ? 2 : 0, willChange: 'opacity' }}>
+
+            {/* Image wrapper for Ken Burns */}
+            <div className="absolute inset-0" style={{ transform: 'scale(1.06)', willChange: 'transform', transition: 'transform 0.08s linear' }}>
+              <Image src={scene.img} alt={scene.heading.join(' ')} fill
+                sizes="100vw" className="object-cover" quality={85} priority={i === 0} />
+            </div>
+
+            {/* Overlay */}
+            <div className="absolute inset-0" style={{
+              background: 'linear-gradient(180deg, rgba(28,10,4,0.42) 0%, rgba(28,10,4,0.22) 38%, rgba(28,10,4,0.9) 100%)'
+            }} />
+
+            {/* Text */}
+            <div ref={el => textRefs.current[i] = el}
+              className="absolute bottom-0 left-0 right-0 p-6 pb-24"
+              style={{ transform: i === 0 ? 'translateY(0px)' : 'translateY(30px)', opacity: i === 0 ? 1 : 0, willChange: 'transform,opacity' }}>
+              <div className="font-display font-light select-none"
+                style={{ fontSize: '5.5rem', color: 'rgba(184,92,56,0.1)', lineHeight: 0.78, marginBottom: '-0.15em' }}>
+                {scene.label}
+              </div>
+              <h3 className="font-display font-light leading-tight mb-3"
+                style={{ fontSize: 'clamp(1.7rem, 6.5vw, 2.2rem)', color: '#F5ECD7' }}>
+                {scene.heading[0]}<br />
+                <em style={{ color: '#DFB245' }}>{scene.heading[1]}</em>
+              </h3>
+              <div className="w-10 h-px mb-3" style={{ background: 'linear-gradient(90deg, #B85C38, #DFB245)' }} />
+              <p className="font-accent text-sm leading-relaxed" style={{ color: 'rgba(245,236,215,0.62)' }}>
+                {scene.sub}
+              </p>
+            </div>
+          </div>
+        ))}
 
         {/* Top label */}
-        <div className="absolute top-6 left-0 right-0 text-center z-20 pointer-events-none">
-          <p className="text-[9px] tracking-[0.55em] uppercase" style={{ color: 'rgba(245,236,215,0.38)' }}>
-            The Art of Coffee
-          </p>
-          <p className="font-display text-base font-light mt-0.5" style={{ color: 'rgba(245,236,215,0.65)' }}>
+        <div className="absolute top-7 left-0 right-0 text-center z-30 pointer-events-none">
+          <p className="text-[9px] tracking-[0.55em] uppercase" style={{ color: 'rgba(245,236,215,0.35)' }}>The Art of Coffee</p>
+          <p className="font-display text-sm font-light mt-0.5" style={{ color: 'rgba(245,236,215,0.6)' }}>
             Coffee <em style={{ color: '#B85C38' }}>Cinematics</em>
           </p>
         </div>
 
-        {/* Horizontal track — translated by scroll */}
-        <div ref={trackRef} className="absolute top-0 left-0 flex"
-          style={{ width: `${SCENES.length * 100}vw`, height: '100dvh', willChange: 'transform', transition: 'transform 0.05s linear' }}>
-          {SCENES.map((scene, i) => (
-            <div key={i} className="relative flex-shrink-0 overflow-hidden"
-              style={{ width: '100vw', height: '100dvh' }}>
-              <Image src={scene.img} alt={scene.heading.join(' ')} fill
-                sizes="100vw" className="object-cover" quality={85} priority={i === 0} />
-
-              {/* Overlay */}
-              <div className="absolute inset-0" style={{
-                background: 'linear-gradient(180deg, rgba(28,10,4,0.45) 0%, rgba(28,10,4,0.25) 40%, rgba(28,10,4,0.88) 100%)'
-              }} />
-
-              {/* Text */}
-              <div className="absolute bottom-0 left-0 right-0 p-6 pb-20">
-                <div className="font-display font-light select-none"
-                  style={{ fontSize: '5rem', color: 'rgba(184,92,56,0.1)', lineHeight: 0.8, marginBottom: '-0.2em' }}>
-                  {scene.label}
-                </div>
-                <h3 className="font-display font-light leading-tight mb-2.5"
-                  style={{ fontSize: 'clamp(1.5rem, 6vw, 2rem)', color: '#F5ECD7' }}>
-                  {scene.heading[0]}<br />
-                  <em style={{ color: '#DFB245' }}>{scene.heading[1]}</em>
-                </h3>
-                <div className="w-8 h-px mb-2.5" style={{ background: 'linear-gradient(90deg, #B85C38, #DFB245)' }} />
-                <p className="font-accent text-sm leading-snug" style={{ color: 'rgba(245,236,215,0.6)' }}>
-                  {scene.sub}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Progress bar at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] z-20"
-          style={{ background: 'rgba(245,236,215,0.08)' }}>
-          <div className="h-full transition-all duration-100"
-            style={{ width: `${((current + 1) / SCENES.length) * 100}%`,
-              background: 'linear-gradient(90deg, #B85C38, #DFB245)' }} />
-        </div>
+        {/* Counter top-right */}
+        <div ref={counterRef} className="absolute top-7 right-5 z-30 font-mono text-[10px] tracking-widest pointer-events-none"
+          style={{ color: 'rgba(245,236,215,0.22)' }}>01 / 05</div>
 
         {/* Dot indicators */}
-        <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-2 z-20">
+        <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2 z-30 pointer-events-none">
           {SCENES.map((_, i) => (
-            <div key={i} className="rounded-full transition-all duration-300"
+            <div key={i} className="rounded-full"
               style={{
-                width:  i === current ? 18 : 5,
-                height: 5,
-                background: i === current ? '#DFB245' : 'rgba(245,236,215,0.22)',
+                width: i === current ? 20 : 5, height: 5,
+                background: i === current ? '#DFB245' : 'rgba(245,236,215,0.2)',
+                transition: 'width 0.35s ease, background 0.35s ease',
               }} />
           ))}
+        </div>
+
+        {/* Progress bar */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] z-30" style={{ background: 'rgba(245,236,215,0.07)' }}>
+          <div ref={barRef} className="h-full" style={{ width: '0%', background: 'linear-gradient(90deg,#B85C38,#DFB245)', transition: 'width 0.08s linear' }} />
         </div>
 
         {/* Scroll hint */}
-        <div className="absolute bottom-12 right-5 z-20 pointer-events-none flex flex-col items-center gap-1"
-          style={{ opacity: current === 0 ? 1 : 0, transition: 'opacity 0.4s' }}>
-          <div className="w-px h-6 animate-pulse" style={{ background: 'linear-gradient(to bottom, rgba(245,236,215,0.4), transparent)' }} />
-          <p className="text-[8px] tracking-[0.3em] uppercase" style={{ color: 'rgba(245,236,215,0.3)' }}>scroll</p>
-        </div>
-
-        {/* Scene counter */}
-        <div className="absolute top-6 right-5 z-20 font-mono text-[10px] tracking-widest pointer-events-none"
-          style={{ color: 'rgba(245,236,215,0.22)' }}>
-          0{current + 1} / 0{SCENES.length}
+        <div className="absolute bottom-14 right-5 z-30 pointer-events-none flex flex-col items-center gap-1"
+          style={{ opacity: current === 0 ? 0.55 : 0, transition: 'opacity 0.5s' }}>
+          <div className="w-px h-7 animate-pulse" style={{ background: 'linear-gradient(to bottom,rgba(245,236,215,0.5),transparent)' }} />
+          <p className="text-[8px] tracking-[0.35em] uppercase" style={{ color: 'rgba(245,236,215,0.35)' }}>scroll</p>
         </div>
       </div>
     </div>
